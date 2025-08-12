@@ -1,0 +1,66 @@
+import cv2
+import numpy as np
+from matplotlib import pyplot as plt
+
+# ---------- (a) Load image ----------
+img7 = cv2.imread('your_image.jpg', cv2.IMREAD_GRAYSCALE)
+
+# ---------- (b) Sobel filter using cv2.filter2D ----------
+sobel_x_kernel = np.array([[1, 0, -1],
+                           [2, 0, -2],
+                           [1, 0, -1]], dtype=np.float32)
+
+sobel_y_kernel = np.array([[1, 2, 1],
+                           [0, 0, 0],
+                           [-1, -2, -1]], dtype=np.float32)
+
+sobel_x_a = cv2.filter2D(img7, -1, sobel_x_kernel)
+sobel_y_a = cv2.filter2D(img7, -1, sobel_y_kernel)
+sobel_a = cv2.magnitude(sobel_x_a.astype(np.float32), sobel_y_a.astype(np.float32))
+
+# ---------- (c) Write your own Sobel filter ----------
+def my_convolution(image, kernel):
+    kh, kw = kernel.shape
+    pad_h, pad_w = kh//2, kw//2
+    padded = np.pad(image, ((pad_h, pad_h), (pad_w, pad_w)), mode='constant')
+    output = np.zeros_like(image, dtype=np.float32)
+
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            region = padded[i:i+kh, j:j+kw]
+            output[i, j] = np.sum(region * kernel)
+    return output
+
+sobel_x_b = my_convolution(img7, sobel_x_kernel)
+sobel_y_b = my_convolution(img7, sobel_y_kernel)
+sobel_b = np.sqrt(sobel_x_b**2 + sobel_y_b**2)
+
+# ---------- (d) Separable convolution ----------
+gx_row = np.array([[1, 0, -1]], dtype=np.float32)  # horizontal derivative
+gx_col = np.array([[1], [2], [1]], dtype=np.float32)  # smoothing vertically
+
+# X-direction
+temp_x = cv2.filter2D(img7, -1, gx_row)
+sobel_x_c = cv2.filter2D(temp_x, -1, gx_col)
+
+# Y-direction (transpose order)
+gy_row = np.array([[1, 2, 1]], dtype=np.float32)
+gy_col = np.array([[1], [0], [-1]], dtype=np.float32)
+
+temp_y = cv2.filter2D(img7, -1, gy_col)
+sobel_y_c = cv2.filter2D(temp_y, -1, gy_row)
+
+sobel_c = cv2.magnitude(sobel_x_c.astype(np.float32), sobel_y_c.astype(np.float32))
+
+# ---------- Display ----------
+titles = ['Original', 'Sobel (filter2D)', 'Sobel (Manual)', 'Sobel (Separable)']
+images = [img7, sobel_a, sobel_b, sobel_c]
+
+plt.figure(figsize=(10,8))
+for i in range(4):
+    plt.subplot(2, 2, i+1)
+    plt.imshow(images[i], cmap='gray')
+    plt.title(titles[i])
+    plt.axis('off')
+plt.tight_layout()
+plt.show()
